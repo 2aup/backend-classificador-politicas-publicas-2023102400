@@ -192,6 +192,7 @@ def list_cursos(
     campus_id: int | None = Query(None),
     unidade_id: int | None = Query(None),
     q: str | None = Query(None, description="Busca por nome do curso"),
+    group_by: str | None = Query(None, description="Agrupa um conjunto de cursos pelo nome principal"),
     limit: int = Query(200, ge=1, le=2000),
     offset: int = Query(0, ge=0, le=200000),
     db: Session = Depends(get_db),
@@ -257,6 +258,10 @@ def list_cursos(
         where.append("c.nome_curso ILIKE :q")
         params["q"] = f"%{q}%"
 
+    if group_by:
+        where.append("c.principal = :principal")
+        params["principal"] = f"{group_by}"
+
     sql = f"""
         SELECT
             c.id_curso,
@@ -278,7 +283,37 @@ def list_cursos(
     """
 
     rows = db.execute(text(sql), params).mappings().all()
-    return {"items": [dict(r) for r in rows], "limit": limit, "offset": offset}
+
+    courses = [dict(r) for r in rows]
+
+    if group_by:
+        if len(rows) == 0:
+            raise HTTPException(
+                        status_code=400,
+                        detail="Não existe nenhum curso com esse nome principal"
+                    )
+
+
+        total_alunos = 0
+        total_evadidos = 0
+
+        for c in courses:
+            evasion_dict = calculate_course_evasion_risk(db, c["id_curso"], 0.7)
+
+            total_alunos += evasion_dict["total_alunos"]
+            total_evadidos += evasion_dict["total_alunos"] * evasion_dict["proporcao_alto_risco"]
+
+        return {
+            "nome_principal": params["principal"],
+            "total_alunos": total_alunos,
+            "evadidos": total_evadidos,
+            "taxa": round(float(total_evadidos / total_alunos or 0) * 100, 2) if total_alunos else 0,
+            "cursos_detalhados": courses,
+            "limit": limit,
+            "offset": offset,
+        }
+    
+    return {"items": courses, "limit": limit, "offset": offset}
 
 @router.get("/{curso_id}/alunos")
 def students_by_curso(
