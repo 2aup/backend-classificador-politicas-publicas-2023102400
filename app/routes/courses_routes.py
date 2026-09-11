@@ -192,6 +192,7 @@ def list_cursos(
     campus_id: int | None = Query(None),
     unidade_id: int | None = Query(None),
     q: str | None = Query(None, description="Busca por nome do curso"),
+    group_by: str | None = Query(None, description="Agrupa cursos pelo nome principal"),
     limit: int = Query(200, ge=1, le=2000),
     offset: int = Query(0, ge=0, le=200000),
     db: Session = Depends(get_db),
@@ -257,11 +258,12 @@ def list_cursos(
         where.append("c.nome_curso ILIKE :q")
         params["q"] = f"%{q}%"
 
-    sql = f"""
+    sql = """
         SELECT
             c.id_curso,
             c.id_unidade,
             c.id_periodo,
+            c.principal,
             c.nome_curso,
             c.modalidade,
             p.periodo AS nome_periodo,
@@ -272,13 +274,75 @@ def list_cursos(
         JOIN unidade u ON u.id_unidade = c.id_unidade
         JOIN campus ca ON ca.id_campus = u.id_campus
         JOIN periodo p ON p.id_periodo = c.id_periodo
-        {"WHERE " + " AND ".join([f"({w})" for w in where]) if where else ""}
-        ORDER BY c.id_curso
-        LIMIT :limit OFFSET :offset
     """
 
-    rows = db.execute(text(sql), params).mappings().all()
-    return {"items": [dict(r) for r in rows], "limit": limit, "offset": offset}
+    if where:
+        sql += " WHERE " + " AND ".join(f"({condition})" for condition in where)
+
+    sql += " ORDER BY c.id_curso"
+
+    # Paginação só para a consulta normal
+    if group_by != "principal":
+        sql += " LIMIT :limit OFFSET :offset"
+
+    rows = db.execute(
+        text(sql),
+        params
+    ).mappings().all()
+
+    courses = [dict(row) for row in rows]
+
+    if group_by == "principal":
+        grouped = {}
+
+        for course in courses:
+            principal = course.pop("principal", None)
+            grouped.setdefault(principal, []).append(course)
+
+        detailed_res = []
+
+        for principal, courses_principal in grouped.items():
+            total_alunos = 0
+            total_evadidos = 0
+
+            for course in courses_principal:
+                evasion = calculate_course_evasion_risk(
+                    db,
+                    course["id_curso"],
+                    0.7
+                )
+
+                alunos = evasion["total_alunos"]
+                total_alunos += alunos
+                total_evadidos += (
+                    int(alunos * evasion["proporcao_alto_risco"])
+                )
+
+            taxa = (
+                total_evadidos / total_alunos * 100
+                if total_alunos
+                else 0
+            )
+
+            detailed_res.append({
+                "nome_principal": principal,
+                "total_alunos": total_alunos,
+                "evadidos": total_evadidos,
+                "taxa": round(taxa, 2),
+                "cursos_detalhados": courses_principal,
+            })
+
+        return detailed_res
+
+    # Consulta normal
+    for course in courses:
+        course.pop("principal", None)
+
+    return {
+        "items": courses,
+        "limit": limit,
+        "offset": offset,
+    }
 
 @router.get("/{curso_id}/alunos")
 def students_by_curso(
