@@ -1,6 +1,5 @@
 from __future__ import annotations
 
-import os
 import json
 import re
 from typing import Any, Dict, List, Optional, Tuple
@@ -10,6 +9,8 @@ from threading import Lock, Thread
 import httpx
 from sqlalchemy import text
 from sqlalchemy.orm import Session
+
+from app.config import groq_model, settings
 
 CACHE_TTL = timedelta(hours=1)
 
@@ -268,11 +269,11 @@ def generate_personas_with_groq(
     personas_n: int,
 ) -> Tuple[Optional[List[Dict[str, Any]]], Optional[Dict[str, Any]]]:
 
-    api_key = os.getenv("GROQ_API_KEY")
+    api_key = settings.GROQ_API_KEY
     if not api_key:
         return None, {"type": "missing_api_key", "message": "GROQ_API_KEY não encontrada"}
 
-    model = os.getenv("GROQ_MODEL", "llama-3.1-8b-instant")
+    model = groq_model()
 
     prompt = f"""
         Crie {personas_n} personas de estudantes com ALTO risco de evasão a partir de GRUPOS diferentes (dados agregados, não individuais).
