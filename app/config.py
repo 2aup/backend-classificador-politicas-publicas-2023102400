@@ -1,4 +1,17 @@
+import os
+
 from pydantic_settings import BaseSettings, SettingsConfigDict
+
+# Modelo usado em todas as chamadas à Groq (personas e xai-summary).
+# Fonte única: trocar de modelo é mudar esse valor, não os serviços.
+DEFAULT_GROQ_MODEL = "openai/gpt-oss-20b"
+
+
+def groq_model() -> str:
+    """Modelo das chamadas à Groq. Sobrescrevível por GROQ_MODEL, mas a env
+    var é opcional -- o default já é o modelo em uso."""
+    return os.getenv("GROQ_MODEL") or DEFAULT_GROQ_MODEL
+
 
 class Settings(BaseSettings):
     DATABASE_URL: str

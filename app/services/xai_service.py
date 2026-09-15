@@ -1,9 +1,10 @@
 from __future__ import annotations
-import os
 import httpx
 from sqlalchemy import text
 from sqlalchemy.orm import Session
 from typing import Any, Dict, List, Optional, Tuple
+
+from app.config import groq_model, settings
 
 
 DEFAULT_SENSITIVE_FEATURES = {
@@ -124,11 +125,11 @@ def fetch_xai_from_db(db: Session, aluno_id: int, limit: int = 10) -> Dict[str, 
     }
 
 def generate_groq_summary(payload: Dict[str, Any]) -> Tuple[Optional[str], Optional[Dict[str, Any]]]:
-    api_key = os.getenv("GROQ_API_KEY")
+    api_key = settings.GROQ_API_KEY
     if not api_key:
         return None, {"type": "missing_api_key", "message": "GROQ_API_KEY não encontrada no ambiente"}
 
-    model = os.getenv("GROQ_MODEL", "openai/gpt-oss-20b")
+    model = groq_model()
 
     neg = sanitize_features(payload["explanation"]["top_negative"])
     pos = sanitize_features(payload["explanation"]["top_positive"])
@@ -195,35 +196,3 @@ def generate_groq_summary(payload: Dict[str, Any]) -> Tuple[Optional[str], Optio
         return None, {"type": "timeout", "message": "Timeout chamando Groq"}
     except Exception as e:
         return None, {"type": "exception", "message": str(e)}
-
-def generate_personas_with_groq(signals: List[Dict[str, Any]], pop: Dict[str, Any], personas_n: int) -> Tuple[Optional[List[Dict[str, Any]]], Optional[Dict[str, Any]]]:
-    api_key = os.getenv("GROQ_API_KEY")
-    if not api_key:
-        return None, {"type": "missing_api_key", "message": "GROQ_API_KEY não encontrada"}
-
-    model = os.getenv("GROQ_MODEL", "llama-3.1-8b-instant")
-
-    top_signals = signals[:12]
-
-    prompt = f"""
-Crie {personas_n} personas de estudantes com ALTO risco de evasão com base em sinais agregados (não individuais).
-TEXTO PURO: sem markdown, sem listas com hífen, sem bullets, sem títulos com **, sem quebras de linha.
-Não invente dados pessoais e não use atributos sensíveis.
-
-Entrada:
-- Estatísticas do grupo: {pop}
-- Sinais mais associados ao alto risco (descricao, direction, share, avg_abs_peso): {top_signals}
-
-Saída obrigatória: um JSON válido (apenas JSON, sem texto extra) no formato:
-{{
-  "personas": [
-    {{
-      "name": "nome curto",
-      "summary": "2 frases diretas descrevendo o perfil e por que está em risco (baseado nos sinais)",
-      "common_signals": ["até 4 descricoes exatamente como vieram"],
-      "suggested_actions": ["até 2 ações, cada uma no máximo 120 caracteres"],
-      "confidence_note": "no máximo 120 caracteres"
-    }}
-  ]
-}}
-""".strip()
