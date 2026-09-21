@@ -3,6 +3,8 @@ from pathlib import Path
 import os
 import uuid
 from app.schemas.user_schema import SavedFile
+from app.config import settings
+
 
 class FileService:
 
@@ -28,7 +30,7 @@ class FileService:
 
     @staticmethod
     async def save_file(file: UploadFile, subdir: str | None = None) -> SavedFile:
-        base_dir = Path(os.getenv("FILES_PATH", "app/storage/documents")).resolve()
+        base_dir = settings.documents_base_dir
         base_dir.mkdir(parents=True, exist_ok=True)
 
         ext = Path(file.filename or "").suffix.lower() or ".pdf"

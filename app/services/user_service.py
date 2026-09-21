@@ -173,7 +173,8 @@ class UserService:
         if raw_path.is_absolute():
             raise HTTPException(status_code=500, detail="storage_key absoluto não é permitido")
 
-        base_dir = Path(getattr(settings, "DOCUMENTS_BASE_DIR", "app/storage/documents")).resolve()
+        
+        base_dir = settings.documents_base_dir
         file_path = (base_dir / raw_path).resolve()
 
         if base_dir not in file_path.parents and file_path != base_dir:
