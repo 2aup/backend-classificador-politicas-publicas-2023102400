@@ -8,6 +8,8 @@ from app.repositories.user_repository import UserRepository
 from app.models.user_model import StatusCadastroEnum
 from app.config import settings
 
+class UserAlreadyValidated(Exception):
+    pass
 
 class AdminNotificationService:
     def __init__(self, db: Session):
@@ -17,17 +19,68 @@ class AdminNotificationService:
         self.frontend_url = settings.FRONTEND_URL
         self.backend_url = settings.BACKEND_URL
 
-    def notify_pending_user(self, user_id: int):
+    def notify_pending_user_single_adm(self, user_id: int, adm_id: int):
+        admin = UserRepository.get_by_id(self.db, adm_id)
+
+        if not admin or admin.status_cadastro != StatusCadastroEnum.APROVADO:
+            return
+
+        try:
+            pending_user, approve_link, reject_link, resend_link, documents_links = self._notify_pending_user(user_id)
+        except UserAlreadyValidated:
+            return
+
+        self._notify_pending_user_email_dispatch(admin, pending_user, approve_link, reject_link, resend_link, documents_links)
+
+        
+    def notify_pending_user_all_adms(self, user_id: int):
+        admins = UserRepository.get_admin_users(self.db)
+        if not admins:
+            return
+
+        try:
+            pending_user, approve_link, reject_link, resend_link, documents_links = self._notify_pending_user(user_id)
+        except UserAlreadyValidated:
+            return
+
+        for admin in admins:
+            if admin.status_cadastro != StatusCadastroEnum.APROVADO:
+                continue
+
+            self._notify_pending_user_email_dispatch(admin, pending_user, approve_link, reject_link, resend_link, documents_links)
+            
+    def _notify_pending_user_email_dispatch(
+        self,
+        admin,
+        pending_user,
+        approve_link,
+        reject_link,
+        resend_link,
+        documents_links
+    ):
+        subject, body = admin_document_review_email(
+            admin_name=admin.nome,
+            user_name=pending_user.nome,
+            user_email=pending_user.email,
+            approve_link=approve_link,
+            reject_link=reject_link,
+            resend_link=resend_link,
+            documents=documents_links,
+        )
+
+        self.email_service.send_email(
+            to_email=admin.email,
+            subject=subject,
+            body=body,
+        )
+
+    def _notify_pending_user(self, user_id: int):
         pending_user = UserRepository.get_by_id(self.db, user_id)
         if not pending_user:
             raise ValueError("Usuário não encontrado")
 
         if pending_user.status_cadastro != "PENDENTE":
-            return
-
-        admins = UserRepository.get_admin_users(self.db)
-        if not admins:
-            return
+            raise UserAlreadyValidated("Usuário já está com cadastro aprovado")
 
         approve_token = self.token_service.generate_token(user_id=pending_user.id_usuario, action="approve")
         reject_token  = self.token_service.generate_token(user_id=pending_user.id_usuario, action="reject")
@@ -35,6 +88,7 @@ class AdminNotificationService:
         base = settings.BACKEND_URL.rstrip("/")
         approve_link = f"{base}/notify/admin/approval/approve?token={approve_token}"
         reject_link  = f"{base}/notify/admin/approval/reject?token={reject_token}"
+        resend_link  = f"{base}/notify/admin/approval/resend?user_id={user_id}"
 
         docs = self.db.execute(
             text("""
@@ -57,21 +111,4 @@ class AdminNotificationService:
             view_link = f"{base}/notify/admin/document/view?token={view_token}"
             documents_links.append((d["tipo_documento"], view_link))
 
-        for admin in admins:
-            if admin.status_cadastro != StatusCadastroEnum.APROVADO:
-                continue
-
-            subject, body = admin_document_review_email(
-                admin_name=admin.nome,
-                user_name=pending_user.nome,
-                user_email=pending_user.email,
-                approve_link=approve_link,
-                reject_link=reject_link,
-                documents=documents_links,
-            )
-
-            self.email_service.send_email(
-                to_email=admin.email,
-                subject=subject,
-                body=body,
-            )
+        return (pending_user, approve_link, reject_link, resend_link, documents_links)

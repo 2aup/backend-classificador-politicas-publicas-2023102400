@@ -13,6 +13,7 @@ from app.utils.email_service import EmailService
 from app.utils.email_templates import user_approval_email, user_rejection_email
 from app.config import settings
 from app.services.admin_service import AdminService
+from app.services.admin_notification_service import AdminNotificationService
 
 
 class AdminController:
@@ -88,6 +89,12 @@ def _reject_user_entity(user, db: Session):
 
     return {"message": "Usuário rejeitado com sucesso."}
 
+
+def resend_approval(user_id: int, adm_id: int, db: Session):
+    AdminNotificationService(db).notify_pending_user_single_adm(user_id, adm_id)
+
+    return {"message": "Links reenviados com sucesso."}
+    
 
 def approve_user(token: str, db: Session):
     token_service = ApprovalTokenService()

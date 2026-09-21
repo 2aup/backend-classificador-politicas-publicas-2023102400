@@ -85,7 +85,7 @@ class UserService:
             db.commit()
 
             try:
-                AdminNotificationService(db).notify_pending_user(created_user.id_usuario)
+                AdminNotificationService(db).notify_pending_user_all_adms(created_user.id_usuario)
             except Exception as notify_error:
                 print(f"Erro ao notificar admins sobre usuário pendente {created_user.id_usuario}: {notify_error}")
 
