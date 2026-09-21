@@ -6,6 +6,7 @@ def admin_document_review_email(
     user_email: str,
     approve_link: str,
     reject_link: str,
+    resend_link: str,
     documents: List[Tuple[str, str]],
 ) -> tuple[str, str]:
     subject = "Cadastro pendente para análise"
@@ -33,6 +34,10 @@ Aprovar cadastro:
 
 Rejeitar cadastro:
 {reject_link}
+
+Link expirado?
+Caso o link de aprovar/rejeitar não esteja funcionando, utilize a opção abaixo para gerar novos links:
+{resend_link}
 
 Observações:
 - Os links são pessoais e intransferíveis.

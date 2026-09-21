@@ -13,6 +13,7 @@ from app.utils.email_service import EmailService
 from app.utils.email_templates import user_approval_email, user_rejection_email
 from app.config import settings
 from app.services.admin_service import AdminService
+from app.services.admin_notification_service import AdminNotificationService
 
 
 class AdminController:
@@ -89,6 +90,12 @@ def _reject_user_entity(user, db: Session):
     return {"message": "Usuário rejeitado com sucesso."}
 
 
+def resend_approval(user_id: int, adm_id: int, db: Session):
+    AdminNotificationService(db).notify_pending_user_single_adm(user_id, adm_id)
+
+    return {"message": "Links reenviados com sucesso."}
+    
+
 def approve_user(token: str, db: Session):
     token_service = ApprovalTokenService()
 
@@ -154,7 +161,7 @@ def _build_user_document_response(user_id: int, doc_id: int, db: Session):
     if raw_path.is_absolute():
         raise HTTPException(status_code=500, detail="storage_key absoluto não é permitido")
 
-    base_dir = Path(getattr(settings, "DOCUMENTS_BASE_DIR", "app/storage/documents")).resolve()
+    base_dir = settings.documents_base_dir
     file_path = (base_dir / raw_path).resolve()
 
     if base_dir not in file_path.parents and file_path != base_dir:

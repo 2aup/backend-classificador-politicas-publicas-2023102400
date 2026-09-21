@@ -85,7 +85,7 @@ class UserService:
             db.commit()
 
             try:
-                AdminNotificationService(db).notify_pending_user(created_user.id_usuario)
+                AdminNotificationService(db).notify_pending_user_all_adms(created_user.id_usuario)
             except Exception as notify_error:
                 print(f"Erro ao notificar admins sobre usuário pendente {created_user.id_usuario}: {notify_error}")
 
@@ -173,7 +173,8 @@ class UserService:
         if raw_path.is_absolute():
             raise HTTPException(status_code=500, detail="storage_key absoluto não é permitido")
 
-        base_dir = Path(getattr(settings, "DOCUMENTS_BASE_DIR", "app/storage/documents")).resolve()
+        
+        base_dir = settings.documents_base_dir
         file_path = (base_dir / raw_path).resolve()
 
         if base_dir not in file_path.parents and file_path != base_dir:

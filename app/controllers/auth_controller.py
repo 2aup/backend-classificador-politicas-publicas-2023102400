@@ -44,7 +44,7 @@ def send_login_code(email: str, db: Session):
 
     code = generate_code()
     store_code(email, code)
-
+    
     email_service.send_email(
         email,
         "Seu código de verificação",

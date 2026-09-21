@@ -1,5 +1,6 @@
 import os
 
+from pathlib import Path
 from pydantic_settings import BaseSettings, SettingsConfigDict
 
 # Modelo usado em todas as chamadas à Groq (personas e xai-summary).
@@ -25,15 +26,17 @@ class Settings(BaseSettings):
     DEBUG_EMAILS: bool = False
     GROQ_API_KEY: str
     ALLOWED_EMAIL_DOMAINS: str
-    FILES_PATH: str
-    DOCUMENTS_BASE_DIR: str | None = None
+    DOCUMENTS_BASE_DIR: str | None
     FRONTEND_URL: str
     BACKEND_URL: str
 
     model_config = SettingsConfigDict(env_file=".env", env_file_encoding="utf-8")
 
     @property
-    def documents_base_dir(self) -> str:
-        return self.DOCUMENTS_BASE_DIR or self.FILES_PATH
+    def documents_base_dir(self) -> Path:
+        if self.DOCUMENTS_BASE_DIR == None or self.DOCUMENTS_BASE_DIR == "":
+            return Path("app/storage/documents").resolve()
+        
+        return Path(self.DOCUMENTS_BASE_DIR).resolve()
 
 settings = Settings()
