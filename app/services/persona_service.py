@@ -287,6 +287,14 @@ def generate_personas_with_groq(
         - Não use quebras de linha. Retorne JSON MINIFICADO em uma única linha.
         - Não use blocos ``` nem markdown.
 
+        Orientações pré-definidas por perfil (use no campo "summary" conforme o rótulo ou os sinais predominantes do grupo, mantendo os links exatos):
+        - P1 (notas abaixo do Q1 ou percentual de reprovação acima do Q3): As notas baixas e a alta taxa relativa de reprovação podem indicar pouca dedicação aos estudos, o que pode ser decorrente de dedicação a atividades remuneradas no contraturno. É indicado que a equipe pedagógica converse com o aluno e informe sobre auxílios de permanência na graduação ([https://www2.unesp.br/portal#!/cope/auxilios/](https://www2.unesp.br/portal#!/cope/auxilios/)) e verifique se há necessidade de auxílio de moradia estudantil para acesso a residência fixa ([https://www.clp.unesp.br/Home/permanenciaestudantil/edital-permanencia-2026-corrigido.pdf](https://www.clp.unesp.br/Home/permanenciaestudantil/edital-permanencia-2026-corrigido.pdf)).
+        - P2 (frequência abaixo do Q1): A indisponibilidade de participação nas aulas pode ser um forte indício de trabalho conjugado com as atividades acadêmicas; em caso de necessidades financeiras, o trabalho é priorizado. Os auxílios de permanência podem mitigar ou suprir essa necessidade para que o aluno foque nos estudos, evitando evasão ([https://www2.unesp.br/portal#!/cope/auxilios/](https://www2.unesp.br/portal#!/cope/auxilios/)). Também é indicado verificar necessidade de auxílio de moradia estudantil ([https://www.clp.unesp.br/Home/permanenciaestudantil/edital-permanencia-2026-corrigido.pdf](https://www.clp.unesp.br/Home/permanenciaestudantil/edital-permanencia-2026-corrigido.pdf)).
+        - P3 (quantidade de disciplinas / notas finais abaixo do Q1): Indica alerta de que o aluno deixou de fazer atividades avaliativas regulares ou de recuperação, possivelmente sacrificando disciplinas complexas para investir tempo em atividade remunerada. Recomenda-se orientar sobre auxílio financeiro de permanência ([https://www2.unesp.br/portal#!/cope/auxilios/](https://www2.unesp.br/portal#!/cope/auxilios/)) e verificar necessidade de auxílio de moradia estudantil ([https://www.clp.unesp.br/Home/permanenciaestudantil/edital-permanencia-2026-corrigido.pdf](https://www.clp.unesp.br/Home/permanenciaestudantil/edital-permanencia-2026-corrigido.pdf)).
+        - P4 (pelo menos dois sinais entre: desempenho baixo, frequência baixa, quantidade reduzida de lançamentos de notas): Combina indícios de pouca dedicação aos estudos ou priorização de atividades remuneradas no contraturno (notas baixas), indisponibilidade para assistir às aulas (frequência baixa) e/ou abandono de atividades avaliativas (baixa quantidade de notas finais lançadas). É indicado que a equipe pedagógica converse com o aluno e informe sobre auxílios de permanência na graduação ([https://www2.unesp.br/portal#!/cope/auxilios/](https://www2.unesp.br/portal#!/cope/auxilios/)) e verifique necessidade de auxílio de moradia estudantil ([https://www.clp.unesp.br/Home/permanenciaestudantil/edital-permanencia-2026-corrigido.pdf](https://www.clp.unesp.br/Home/permanenciaestudantil/edital-permanencia-2026-corrigido.pdf)).
+        - P5 (dados suficientes e nenhum dos três sinais de atenção): O aluno possui baixo risco de evasão, possivelmente já conhece os auxílios da universidade e não se encontra em condição de vulnerabilidade.
+        - NA (dados insuficientes para avaliar todos os critérios e menos de dois sinais de atenção conhecidos): Verificar manualmente os dados de nota, frequência, reprovação e lançamentos de notas finais, pois índices baixos ou alta reprovação apontam grande risco de evasão. Uma verificação pontual é recomendada para avaliar necessidade de apoio financeiro ([https://www2.unesp.br/portal#!/cope/auxilios/](https://www2.unesp.br/portal#!/cope/auxilios/)) e auxílio de moradia estudantil ([https://www.clp.unesp.br/Home/permanenciaestudantil/edital-permanencia-2026-corrigido.pdf](https://www.clp.unesp.br/Home/permanenciaestudantil/edital-permanencia-2026-corrigido.pdf)).
+
         Entrada (agregada):
         {payload}
 
@@ -295,7 +303,7 @@ def generate_personas_with_groq(
         "personas": [
             {{
             "name": "nome curto da persona",
-            "summary": "2 frases diretas sobre o padrão de risco baseado nos sinais do grupo",
+            "summary": "análise direta do padrão de risco incorporando a orientação e os links exatos do perfil correspondente acima",
             "common_signals": ["até 4 descricoes exatamente como em top_signals"],
             "who_to_interview": "precisa ser aluno; no máximo 160 caracteres",
             "confidence_note": "1 frase: baseado em dados agregados"
@@ -310,7 +318,7 @@ def generate_personas_with_groq(
     # common_signals (as descrições inteiras, às vezes 150+ caracteres cada) + summary +
     # who_to_interview + confidence_note, então o custo cresce com personas_n. Escala
     # linear com uma margem generosa, com teto de 4000 pra não sair do controle.
-    max_tokens = min(4000, 350 + 380 * personas_n)
+    max_tokens = min(4000, 450 + 600 * personas_n)
     body = {
         "model": model,
         "temperature": 0.1,
